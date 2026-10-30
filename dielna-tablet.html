@@ -59,6 +59,16 @@ button.t[disabled]{opacity:.35}
 #setup button{font:600 1.1rem "Barlow Condensed",sans-serif;padding:12px 18px;border-radius:8px;border:0;background:var(--ink);color:#fff;cursor:pointer}
 #setup button.sec{background:var(--alu2);color:var(--ink)}
 .empty{color:var(--muted);padding:8px 2px}
+.a{font:700 1.5rem/1 "Barlow Condensed",sans-serif;display:flex;align-items:center;justify-content:center;color:#fff!important}
+.a.in{background:var(--green)}.a.out{background:var(--red)}
+#cam{position:fixed;inset:0;background:rgba(20,30,38,.92);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:8;gap:18px;padding:20px}
+#cam.on{display:flex}
+#cam .who{color:#fff;font:700 2.2rem/1 "Barlow Condensed",sans-serif;text-align:center}
+#cam .frame{position:relative;width:min(70vw,52vh);aspect-ratio:3/4;border-radius:14px;overflow:hidden;background:#000;border:4px solid #fff}
+#cam video,#cam img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#cam .cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:700 7rem/1 "Barlow Condensed",sans-serif;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+#cam .msg{color:#DCE4EA;font-size:1.2rem}
+#cam button{font:600 1.2rem "Barlow Condensed",sans-serif;padding:12px 22px;border-radius:8px;border:0;background:var(--alu2);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-height:700px){.app{grid-template-rows:auto 1fr 1.4fr 1.3fr}.w .n{font-size:1.7rem}}
 </style>
@@ -71,6 +81,9 @@ button.t[disabled]{opacity:.35}
   <section><h2>Operácia <span class="hint" id="opHint">Najprv vyber meno</span></h2><div class="grid" id="ops"></div></section>
 </div>
 <div id="toast"></div>
+<div id="cam" aria-live="polite"><div class="who" id="camWho"></div>
+  <div class="frame"><video id="vid" playsinline muted autoplay></video><img id="shot" alt="" hidden><div class="cd" id="cd"></div></div>
+  <div class="msg">Pozri sa do kamery</div><button id="camCancel">Zrušiť</button></div>
 <div id="setup"><div class="box">
   <h2>Pripojenie k Airtable</h2>
   <p>Vlož prístupový token pre base Dochádzka. Uloží sa iba v tomto tablete.</p>
@@ -80,15 +93,16 @@ button.t[disabled]{opacity:.35}
 
 <script>
 const BASE='appBy499CfXWspEwm';
-const T={workers:'tbl3hG7ehCANkuHCG',ops:'tbljQUMy8DlNERxru',orders:'tblrEGT9sFE97IF1b',log:'tblQaMveOs5sVeNoZ'};
+const T={att:'tbl99myMfyLgcZD25',workers:'tbl3hG7ehCANkuHCG',ops:'tbljQUMy8DlNERxru',orders:'tblrEGT9sFE97IF1b',log:'tblQaMveOs5sVeNoZ'};
 const F={wName:'fldS120pHafSy2Cwc',wActive:'fldGEY11gUYC0AqXP',
   opName:'fldjPiTAo9ARAWuhe',opOrder:'fldzmeSdJrwQi3DNT',opType:'fldKGMlX6MjImkoj9',
   oNum:'flduZ4pChX4FzHI7l',oCust:'fldWGGxa171HyXy5h',oAct:'fldM3yAruVD9yvAir',
-  lOrder:'fldbG9cGhF5WPrbqK',lWorker:'fldVTH1WHhGaqLtSs',lOp:'fldtkOLsp20sXrUdJ',lEnd:'fldgpWcdOZKtPGY5v',lStart:'fldlsVUbMvmFQdSjI'};
+  lOrder:'fldbG9cGhF5WPrbqK',lWorker:'fldVTH1WHhGaqLtSs',lOp:'fldtkOLsp20sXrUdJ',lEnd:'fldgpWcdOZKtPGY5v',lStart:'fldlsVUbMvmFQdSjI',
+  aWorker:'fldDw5lm0GBCkPdfs',aType:'fldc7J2pUkydStIx4',aPlace:'fld2NL4Ec4cdswaze',aPhoto:'fld0a9CNdxnhbShcq',aNote:'fldH2MufYytiYVQf4'};
 const WCOL=['var(--w1)','var(--w2)','var(--w3)','#7A4FA0','#2A8A8A'];
 
 let token=null; try{token=localStorage.getItem('dielna_token')}catch(e){}
-let workers=[],ops=[],orders=[],open={};
+let workers=[],ops=[],orders=[],open={},att={};
 let sel={w:null,o:null}; let idle;
 const $=id=>document.getElementById(id);
 
@@ -122,9 +136,21 @@ async function loadOpen(){
     const prev=open[w]; if(!prev||x.createdTime>prev.t) open[w]={t:x.createdTime,op:(x.fields[F.lOp]||[])[0],o:(x.fields[F.lOrder]||[])[0]}});
 }
 
+async function loadAtt(){
+  const f=encodeURIComponent("IS_AFTER(CREATED_TIME(),DATEADD(TODAY(),-2,'days'))");
+  const r=await all(T.att,'&filterByFormula='+f);
+  const today=new Date().toDateString(); att={};
+  r.forEach(x=>{if(new Date(x.createdTime).toDateString()!==today)return;
+    const w=(x.fields[F.aWorker]||[])[0];if(!w)return;const p=att[w];
+    if(!p||x.createdTime>p.t) att[w]={t:x.createdTime,type:x.fields[F.aType]}});
+}
+const isIn=wid=>att[wid]&&att[wid].type==='Príchod';
+
 function hm(iso){return new Date(iso).toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'})}
 function status(wid){
-  const s=open[wid]; if(!s) return 'nič rozrobené';
+  if(!att[wid]) return 'ešte nemá príchod';
+  if(att[wid].type==='Odchod') return 'odišiel o '+hm(att[wid].t);
+  const s=open[wid]; if(!s) return 'prišiel o '+hm(att[wid].t)+', nič rozrobené';
   const op=ops.find(x=>x.id===s.op), o=orders.find(x=>x.id===s.o);
   return (op?op.name:'?')+(o?' – '+o.num:'')+' od '+hm(s.t);
 }
@@ -143,9 +169,12 @@ function render(){
     b.querySelector('.s').textContent=[o.cust,o.act].filter(Boolean).join(', ');
     b.onclick=()=>{sel.o=sel.o===o.id?null:o.id;touch();render()};O.appendChild(b)});
   const P=$('ops'); P.innerHTML='';
+  if(sel.w){const inn=isIn(sel.w);
+    const a=document.createElement('button');a.className='t a '+(inn?'out':'in');a.textContent=inn?'Odchod':'Príchod';
+    a.onclick=()=>attend(inn?'Odchod':'Príchod');P.appendChild(a)}
   ops.forEach(op=>{const b=document.createElement('button');b.className='t p'+(op.prod?'':' np');b.textContent=op.name;
-    b.disabled=!sel.w||(op.prod&&!sel.o);b.onclick=()=>log(op);P.appendChild(b)});
-  $('opHint').textContent=!sel.w?'Najprv vyber meno':(!sel.o?'Vyber zákazku, alebo pauzu / koniec dňa':'Ťukni na operáciu a začne sa');
+    b.disabled=!sel.w||!isIn(sel.w)||(op.prod&&!sel.o);b.onclick=()=>log(op);P.appendChild(b)});
+  $('opHint').textContent=!sel.w?'Najprv vyber meno':!isIn(sel.w)?'Najprv daj Príchod':(!sel.o?'Vyber zákazku, alebo pauzu / koniec dňa':'Ťukni na operáciu a začne sa');
 }
 
 let busy=false;
@@ -163,6 +192,57 @@ async function log(op){
   busy=false;
 }
 
+let stream=null;
+async function camOn(){
+  if(stream&&stream.active) return true;
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640}},audio:false});$('vid').srcObject=stream;return true}
+  catch(e){stream=null;return false}
+}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let camAbort=false;
+async function takePhoto(name){
+  const ok=await camOn(); if(!ok) return null;
+  camAbort=false; $('camWho').textContent=name; $('shot').hidden=true; $('cam').classList.add('on');
+  for(const n of [3,2,1]){if(camAbort)break;$('cd').textContent=n;await wait(800)}
+  $('cd').textContent='';
+  if(camAbort){$('cam').classList.remove('on');return 'cancel'}
+  const v=$('vid'),c=document.createElement('canvas'),w=480,h=Math.round(w*(v.videoHeight||640)/(v.videoWidth||480));
+  c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
+  const url=c.toDataURL('image/jpeg',0.7); $('shot').src=url; $('shot').hidden=false;
+  await wait(600); $('cam').classList.remove('on');
+  return url.split(',')[1];
+}
+$('camCancel').onclick=()=>{camAbort=true};
+
+async function upload(recId,b64){
+  const r=await fetch('https://content.airtable.com/v0/'+BASE+'/'+recId+'/'+F.aPhoto+'/uploadAttachment',{method:'POST',
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({contentType:'image/jpeg',file:b64,filename:'foto-'+Date.now()+'.jpg'})});
+  if(!r.ok) throw new Error('foto');
+}
+
+async function attend(type){
+  if(busy||!sel.w) return; busy=true;
+  const wid=sel.w, w=workers.find(x=>x.id===wid);
+  const photo=await takePhoto(w.name+' – '+type);
+  if(photo==='cancel'){busy=false;return}
+  const fields={[F.aWorker]:[wid],[F.aType]:type,[F.aPlace]:'Dielňa'};
+  if(!photo) fields[F.aNote]='bez fotky (kamera nedostupná)';
+  try{
+    const r=await api(T.att,{method:'POST',body:JSON.stringify({records:[{fields}]})});
+    const rec=r.records[0]; att[wid]={t:rec.createdTime,type};
+    let note='';
+    if(photo){try{await upload(rec.id,photo)}catch(e){note=' (fotka sa neuložila)'}}
+    if(type==='Odchod'&&open[wid]){
+      const end=ops.find(x=>x.name==='Koniec dňa');
+      if(end){try{await api(T.log,{method:'POST',body:JSON.stringify({records:[{fields:{[F.lWorker]:[wid],[F.lOp]:[end.id]}}]})});open[wid]=undefined}catch(e){note+=' (rozrobenú prácu ukonči ručne)'}}
+    }
+    toast(w.name+': '+type+' '+hm(rec.createdTime)+note, !!note);
+    sel={w:null,o:null}; render();
+  }catch(e){toast(e.message+' Skús znova.',true)}
+  busy=false;
+}
+
 function toast(msg,err){const t=$('toast');t.textContent=msg;t.className='on'+(err?' err':'');clearTimeout(t._h);t._h=setTimeout(()=>t.className=err?'err':'',err?6000:3500)}
 function touch(){clearTimeout(idle);idle=setTimeout(()=>{sel={w:null,o:null};render()},45000)}
 function tick(){$('clock').textContent=new Date().toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'})}
@@ -172,7 +252,7 @@ $('saveTok').onclick=()=>{const v=$('tok').value.trim();if(!v)return;token=v;try
 $('cancelTok').onclick=()=>$('setup').style.display='none';
 let gearT; $('gear').onpointerdown=()=>{gearT=setTimeout(showSetup,1500)}; $('gear').onpointerup=()=>clearTimeout(gearT);
 
-async function refresh(){try{await Promise.all([loadOrders(),loadOpen()]);render()}catch(e){toast(e.message,true)}}
+async function refresh(){try{await Promise.all([loadOrders(),loadOpen(),loadAtt()]);render()}catch(e){toast(e.message,true)}}
 async function start(){
   try{await loadStatic();await refresh()}catch(e){toast(e.message,true)}
 }
