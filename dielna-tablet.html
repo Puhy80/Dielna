@@ -44,6 +44,17 @@ button.t[disabled]{opacity:.35}
 .o.sel{background:var(--ink);color:#fff}.o.sel .s{color:#C9D3DA}
 .p{font:600 1.3rem/1.1 "Barlow Condensed",sans-serif;display:flex;align-items:center}
 .p.np{background:var(--alu2)}
+.p.done{background:var(--green);color:#fff}
+.p.done[disabled]{background:var(--tile);color:var(--ink)}
+.sep{grid-column:1/-1;height:0;border-top:2px dashed var(--alu2);margin:2px 0}
+#ask{position:fixed;inset:0;background:rgba(20,30,38,.6);display:none;align-items:center;justify-content:center;z-index:7;padding:20px}
+#ask.on{display:flex}
+#ask .box{background:var(--tile);border-radius:14px;padding:26px;max-width:480px;width:100%;text-align:center}
+#ask h3{font:700 1.8rem/1.15 "Barlow Condensed",sans-serif;margin:0 0 8px}
+#ask p{margin:0 0 20px;color:var(--muted);font-size:1.05rem}
+#ask .row{display:flex;gap:12px}
+#ask button{flex:1;font:700 1.4rem "Barlow Condensed",sans-serif;padding:16px;border-radius:10px;border:0;cursor:pointer}
+#ask .yes{background:var(--green);color:#fff}#ask .no{background:var(--alu2);color:var(--ink)}
 .p:not([disabled]){border-color:var(--amber)}
 .hint{font-size:.95rem;color:var(--muted);margin-left:8px;font-family:Barlow,sans-serif;font-weight:500}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,140%);
@@ -81,6 +92,8 @@ button.t[disabled]{opacity:.35}
   <section><h2>Operácia <span class="hint" id="opHint">Najprv vyber meno</span></h2><div class="grid" id="ops"></div></section>
 </div>
 <div id="toast"></div>
+<div id="ask" role="dialog" aria-modal="true"><div class="box"><h3 id="askT"></h3><p id="askP"></p>
+  <div class="row"><button class="no" id="askNo">Nie, späť</button><button class="yes" id="askYes">Áno, dokončená</button></div></div></div>
 <div id="cam" aria-live="polite"><div class="who" id="camWho"></div>
   <div class="frame"><video id="vid" playsinline muted autoplay></video><img id="shot" alt="" hidden><div class="cd" id="cd"></div></div>
   <div class="msg">Pozri sa do kamery</div><button id="camCancel">Zrušiť</button></div>
@@ -93,11 +106,12 @@ button.t[disabled]{opacity:.35}
 
 <script>
 const BASE='appBy499CfXWspEwm';
-const T={att:'tbl99myMfyLgcZD25',workers:'tbl3hG7ehCANkuHCG',ops:'tbljQUMy8DlNERxru',orders:'tblrEGT9sFE97IF1b',log:'tblQaMveOs5sVeNoZ'};
+const T={att:'tbl99myMfyLgcZD25',workers:'tbl3hG7ehCANkuHCG',ops:'tbljQUMy8DlNERxru',orders:'tblrEGT9sFE97IF1b',log:'tblQaMveOs5sVeNoZ',arch:'tbl3bbwN9M2QzOzGG'};
 const F={wName:'fldS120pHafSy2Cwc',wActive:'fldGEY11gUYC0AqXP',
   opName:'fldjPiTAo9ARAWuhe',opOrder:'fldzmeSdJrwQi3DNT',opType:'fldKGMlX6MjImkoj9',
   oNum:'flduZ4pChX4FzHI7l',oCust:'fldWGGxa171HyXy5h',oAct:'fldM3yAruVD9yvAir',
   lOrder:'fldbG9cGhF5WPrbqK',lWorker:'fldVTH1WHhGaqLtSs',lOp:'fldtkOLsp20sXrUdJ',lEnd:'fldgpWcdOZKtPGY5v',lStart:'fldlsVUbMvmFQdSjI',
+  arNum:'fldgBXAypG3y1ImCz',
   aWorker:'fldDw5lm0GBCkPdfs',aType:'fldc7J2pUkydStIx4',aPlace:'fld2NL4Ec4cdswaze',aPhoto:'fld0a9CNdxnhbShcq',aNote:'fldH2MufYytiYVQf4'};
 const WCOL=['var(--w1)','var(--w2)','var(--w3)','#7A4FA0','#2A8A8A'];
 
@@ -121,11 +135,15 @@ async function all(table,params=''){
 async function loadStatic(){
   const [w,o]=await Promise.all([all(T.workers),all(T.ops)]);
   workers=w.filter(r=>r.fields[F.wActive]).map(r=>({id:r.id,name:r.fields[F.wName]||'?'})).sort((a,b)=>a.name.localeCompare(b.name,'sk'));
-  ops=o.map(r=>({id:r.id,name:r.fields[F.opName]||'?',ord:r.fields[F.opOrder]??999,prod:r.fields[F.opType]!=='Neproduktívne'})).sort((a,b)=>a.ord-b.ord);
+  ops=o.map(r=>({id:r.id,name:r.fields[F.opName]||'?',ord:r.fields[F.opOrder]??999,prod:r.fields[F.opType]!=='Neproduktívne',done:r.fields[F.opName]==='Dokončená zákazka'})).sort((a,b)=>a.ord-b.ord);
 }
+let doneNums=new Set();
 async function loadOrders(){
-  const o=await all(T.orders);
+  const [o,d]=await Promise.all([all(T.orders),
+    all(T.arch,'&filterByFormula='+encodeURIComponent('NOT({Dokončené}=BLANK())')).catch(()=>[])]);
+  d.forEach(r=>{const n=String(r.fields[F.arNum]||'').trim().toUpperCase();if(n)doneNums.add(n)});
   orders=o.map(r=>({id:r.id,num:r.fields[F.oNum]||'?',cust:(r.fields[F.oCust]||'').trim(),act:String(r.fields[F.oAct]||'').split('\n')[0].trim()}))
+    .filter(x=>!doneNums.has(String(x.num).trim().toUpperCase()))
     .sort((a,b)=>a.num.localeCompare(b.num,'sk',{numeric:true}));
 }
 async function loadOpen(){
@@ -172,9 +190,12 @@ function render(){
   if(sel.w){const inn=isIn(sel.w);
     const a=document.createElement('button');a.className='t a '+(inn?'out':'in');a.textContent=inn?'Odchod':'Príchod';
     a.onclick=()=>attend(inn?'Odchod':'Príchod');P.appendChild(a)}
-  ops.forEach(op=>{const b=document.createElement('button');b.className='t p'+(op.prod?'':' np');b.textContent=op.name;
-    b.disabled=!sel.w||!isIn(sel.w)||(op.prod&&!sel.o);b.onclick=()=>log(op);P.appendChild(b)});
-  $('opHint').textContent=!sel.w?'Najprv vyber meno':!isIn(sel.w)?'Najprv daj Príchod':(!sel.o?'Vyber zákazku, alebo pauzu / koniec dňa':'Ťukni na operáciu a začne sa');
+  const mk=op=>{const b=document.createElement('button');b.className='t p'+(op.prod?'':' np')+(op.done?' done':'');b.textContent=op.name;
+    b.disabled=!sel.w||!isIn(sel.w)||(op.prod&&!sel.o);b.onclick=()=>op.done?askDone(op):log(op);P.appendChild(b)};
+  ops.filter(o=>o.prod).forEach(mk);
+  const sp=document.createElement('div');sp.className='sep';P.appendChild(sp);
+  ops.filter(o=>!o.prod).forEach(mk);
+  $('opHint').textContent=!sel.w?'Najprv vyber meno':!isIn(sel.w)?'Najprv daj Príchod':(!sel.o?'Vyber zákazku, alebo prípravu / pauzu / koniec dňa':'Ťukni na operáciu a začne sa');
 }
 
 let busy=false;
@@ -185,11 +206,21 @@ async function log(op){
   try{
     const r=await api(T.log,{method:'POST',body:JSON.stringify({records:[{fields}],returnFieldsByFieldId:true})});
     const t=r.records[0].createdTime;
-    open[sel.w]= op.name==='Koniec dňa'?undefined:{t,op:op.id,o:o?o.id:null};
-    toast(w.name+': '+op.name+(o?' – '+o.num:'')+' od '+hm(t));
+    open[sel.w]= (op.name==='Koniec dňa'||op.done)?undefined:{t,op:op.id,o:o?o.id:null};
+    if(op.done&&o){doneNums.add(String(o.num).trim().toUpperCase());orders=orders.filter(x=>x.id!==o.id)}
+    toast(op.done?('Zákazka '+o.num+' je dokončená ✔'):(w.name+': '+op.name+(o?' – '+o.num:'')+' od '+hm(t)));
     sel={w:null,o:null}; render();
   }catch(e){toast(e.message+' Skús znova.',true)}
   busy=false;
+}
+
+function askDone(op){
+  const o=orders.find(x=>x.id===sel.o); if(!o||!sel.w) return; touch();
+  $('askT').textContent='Dokončiť zákazku '+o.num+'?';
+  $('askP').textContent=[o.cust,o.act].filter(Boolean).join(', ')+' – zmizne zo zoznamu na tablete.';
+  $('ask').classList.add('on');
+  $('askYes').onclick=()=>{$('ask').classList.remove('on');log(op)};
+  $('askNo').onclick=()=>$('ask').classList.remove('on');
 }
 
 let stream=null;
