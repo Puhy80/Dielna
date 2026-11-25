@@ -386,6 +386,11 @@ $('clock').addEventListener('pointerdown',()=>{press=setTimeout(openSetup,2000)}
 let lock=null;
 async function wake(){try{if('wakeLock' in navigator&&(!lock||lock.released))lock=await navigator.wakeLock.request('screen')}catch(e){}}
 document.addEventListener('pointerdown',wake,{passive:true});
+/* celá obrazovka pri prvom dotyku, ak stránka nebeží ako nainštalovaná aplikácia */
+const standalone=()=>matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
+document.addEventListener('pointerdown',()=>{const e=document.documentElement;
+  if(!standalone()&&!document.fullscreenElement&&e.requestFullscreen) e.requestFullscreen().catch(()=>{})},{passive:true});
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){wake();refresh()}});
 window.addEventListener('online',()=>{flush().then(refresh)});
 
