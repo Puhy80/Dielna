@@ -179,7 +179,7 @@ const BASE='appBy499CfXWspEwm';
 const T={workers:'tbl3hG7ehCANkuHCG',att:'tbl99myMfyLgcZD25'};
 const F={wName:'fldS120pHafSy2Cwc',wSec:'fldF2hH2QcPK4E0il',wOn:'fldqbPnb9Z3qsutBa',
   aW:'fldDw5lm0GBCkPdfs',aType:'fldc7J2pUkydStIx4',aPlace:'fld2NL4Ec4cdswaze',aPhoto:'fld0a9CNdxnhbShcq',aFix:'fld9zCWZ5gOuviNOW',aNote:'fldH2MufYytiYVQf4'};
-const SECTIONS=['Montáž','PVC dielňa','Al dielňa','Kancelária'];
+const SECTIONS=['Montáž','Kancelária','Al dielňa','PVC dielňa'];
 const K={tok:'doch_token',queue:'doch_queue',cache:'doch_workers'};
 const $=id=>document.getElementById(id);
 
@@ -254,11 +254,11 @@ async function refresh(){
 
 /* ---------- ukážkové dáta ---------- */
 function demoData(){
-  const g={'Montáž':['Marek','Milan L','Miro','Števo','Andi','Miš','Matúš'],'PVC dielňa':['Lubo','Milan S','Janko'],'Al dielňa':['Zdenko','Robko','Kiko','Maťka'],'Kancelária':['Igi','Jupo','Danka','Janka','Zuzka']};
+  const g={'Montáž':['Marek','Milan L','Miro','Števo','Andi','Miš'],'PVC dielňa':['Lubo','Milan S','Janko'],'Al dielňa':['Zdenko','Robko','Kiko','Maťka'],'Kancelária':['Igi','Jupo','Danka','Janka','Zuzka']};
   workers=[];Object.keys(g).forEach(s=>g[s].forEach((n,i)=>workers.push({id:'demo'+s+i,name:n,sec:s})));
   const d=new Date();const at=(h,m)=>{const x=new Date(d);x.setHours(h,m,0,0);return x};
-  state={};[[0,6,41],[1,6,44],[2,6,52],[3,6,55],[7,6,30],[10,6,28],[11,6,35],[14,7,58]].forEach(([i,h,m])=>state[workers[i].id]={t:at(h,m),type:'Príchod'});
-  state[workers[8].id]={t:at(6,31),type:'Odchod'};
+  state={};[[0,6,41],[1,6,44],[2,6,52],[3,6,55],[6,6,30],[9,6,28],[10,6,35],[13,7,58]].forEach(([i,h,m])=>state[workers[i].id]={t:at(h,m),type:'Príchod'});
+  state[workers[7].id]={t:at(6,31),type:'Odchod'};
 }
 
 /* ---------- vykreslenie ---------- */
