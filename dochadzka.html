@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#DDE2E5">
+<link rel="manifest" href="dochadzka.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>Dochádzka JiPO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --alu:#DDE2E5;      /* eloxovaný hliník – pozadie */
+  --alu-2:#CDD3D7;    /* rámy, deliace čiary */
+  --pane:#F7F9FA;     /* dlaždica */
+  --ink:#1D272E;      /* grafit RAL 7016 */
+  --muted:#66737B;
+  --in:#1E7A4C;       /* v práci */
+  --in-soft:#DCEFE4;
+  --out:#A9620D;      /* odchod */
+  --err:#B3412B;
+  --head:"Barlow Semi Condensed","Roboto Condensed","sans-serif-condensed",system-ui,sans-serif;
+  --body:"Barlow",Roboto,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--alu);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;user-select:none;overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.hidden{display:none!important}
+
+/* ---------- hlavná obrazovka ---------- */
+#home{height:100%;display:grid;grid-template-rows:auto 1fr auto;padding:clamp(10px,2vh,20px) clamp(12px,2vw,24px);gap:clamp(8px,1.6vh,16px)}
+header{display:flex;align-items:flex-end;gap:clamp(12px,2vw,24px)}
+#clock{font-family:var(--head);font-weight:700;font-size:clamp(44px,11vh,92px);line-height:.85;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+#date{white-space:nowrap;font-size:clamp(15px,2.6vh,22px);color:var(--muted);padding-bottom:.2em}
+#count{margin-left:auto;white-space:nowrap;font-family:var(--head);font-size:clamp(17px,3vh,26px);font-weight:600;padding-bottom:.15em;display:flex;align-items:center;gap:.45em}
+#count i{width:.6em;height:.6em;border-radius:50%;background:var(--in);display:inline-block}
+
+#groups{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:clamp(8px,1.4vw,16px);min-height:0}
+.group{display:flex;flex-direction:column;min-height:0;gap:clamp(4px,.9vh,8px)}
+.group h2{font-family:var(--head);font-weight:600;font-size:clamp(15px,2.6vh,20px);color:var(--muted);padding:0 2px 2px;border-bottom:2px solid var(--alu-2)}
+.tiles{display:grid;grid-template-rows:repeat(var(--rows,7),minmax(0,1fr));gap:clamp(4px,.9vh,8px);flex:1;min-height:0;max-height:calc(var(--rows,7)*84px)}
+.tile{min-height:0;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--pane);border-radius:6px;padding:0 clamp(10px,1.4vw,16px);text-align:left;
+  box-shadow:inset 0 0 0 1px var(--alu-2);position:relative;overflow:hidden}
+.tile .nm{font-family:var(--head);font-weight:600;font-size:clamp(19px,3.6vh,30px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .st{font-size:clamp(13px,2.2vh,17px);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tile.in{box-shadow:inset 0 0 0 1px #B9DCC8;background:#FFFFFF}
+.tile.in::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;background:var(--in)}
+.tile.in .st{color:var(--in);font-weight:600}
+.tile.out{background:transparent;box-shadow:inset 0 0 0 1px var(--alu-2)}
+.tile.out .nm{color:var(--muted)}
+.tile:active{transform:scale(.98)}
+
+footer{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:clamp(12px,2vh,15px);color:var(--muted)}
+footer .warn{color:var(--err);font-weight:600}
+#demo{background:var(--ink);color:#fff;border-radius:6px;padding:6px 12px;font-weight:500}
+
+/* ---------- pípnutie ---------- */
+#sheet{position:fixed;inset:0;background:var(--alu);display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  gap:clamp(16px,3vw,40px);padding:clamp(14px,3vh,32px) clamp(16px,3vw,40px);align-items:center}
+.cam{position:relative;height:100%;max-height:calc(100vh - 2*clamp(14px,3vh,32px));aspect-ratio:3/4;justify-self:center;
+  background:var(--ink);border-radius:10px;overflow:hidden;box-shadow:0 0 0 6px var(--pane),0 0 0 7px var(--alu-2)}
+.cam video,.cam img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.cam .nocam{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:#C7D0D5;font-size:17px;line-height:1.4}
+.cam .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.cam .flash.go{animation:flash .35s ease-out}
+@keyframes flash{from{opacity:.85}to{opacity:0}}
+.who h1{font-family:var(--head);font-weight:700;font-size:clamp(40px,10vh,84px);line-height:.95;margin-bottom:.15em}
+.who p{font-size:clamp(17px,3vh,24px);color:var(--muted);margin-bottom:clamp(16px,4vh,36px)}
+.who p b{color:var(--in);font-weight:600}
+.act{width:100%;max-width:520px;height:clamp(76px,17vh,130px);border-radius:10px;color:#fff;
+  font-family:var(--head);font-weight:700;font-size:clamp(32px,7.5vh,60px);display:flex;align-items:center;justify-content:center;gap:.4em}
+.act.in{background:var(--in)}
+.act.out{background:var(--out)}
+.act:active{filter:brightness(.92)}
+.act[disabled]{opacity:.7}
+.links{display:flex;gap:clamp(16px,3vw,32px);margin-top:clamp(14px,3vh,28px);max-width:520px;justify-content:space-between}
+.links button{font-size:clamp(16px,2.8vh,21px);padding:10px 2px;color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--alu-2)}
+.links .cancel{font-weight:600;text-decoration:none;background:var(--pane);box-shadow:inset 0 0 0 1px var(--alu-2);border-radius:8px;padding:10px 22px}
+
+/* ---------- potvrdenie ---------- */
+#done{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#fff;text-align:center;padding:24px}
+#done.in{background:var(--in)}
+#done.out{background:var(--out)}
+#done .big{font-family:var(--head);font-weight:700;font-size:clamp(48px,14vh,120px);line-height:.95;font-variant-numeric:tabular-nums}
+#done .msg{font-size:clamp(20px,4vh,34px);font-weight:500}
+#done .note{font-size:clamp(14px,2.4vh,18px);opacity:.9;margin-top:8px}
+
+/* ---------- nastavenie ---------- */
+#setup{position:fixed;inset:0;background:var(--alu);display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:var(--pane);border-radius:10px;box-shadow:inset 0 0 0 1px var(--alu-2);padding:clamp(18px,4vh,32px);width:100%;max-width:560px}
+.card h2{font-family:var(--head);font-size:30px;margin-bottom:6px}
+.card p{color:var(--muted);line-height:1.45;margin-bottom:14px}
+.card label{display:block;font-weight:600;margin-bottom:6px}
+.card input{width:100%;font:inherit;font-size:17px;padding:12px;border-radius:8px;border:1px solid var(--alu-2);background:#fff;color:var(--ink)}
+.card .row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{font-weight:600;font-size:17px;padding:12px 20px;border-radius:8px;background:var(--ink);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--alu-2)}
+#setMsg{min-height:1.4em;margin-top:10px;font-weight:500}
+
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--err);color:#fff;padding:12px 18px;border-radius:8px;font-weight:500;max-width:90vw;display:none}
+#toast.on{display:block}
+
+@media (orientation:portrait){
+  #groups{--cols:2!important;grid-auto-rows:min-content;overflow:auto}
+  .tiles{grid-template-rows:none;grid-auto-rows:64px;max-height:none}
+  #sheet{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;align-items:start}
+  .cam{max-height:52vh}
+  .who{text-align:center}.act,.links{margin-left:auto;margin-right:auto}
+}
+@media (prefers-reduced-motion:reduce){.cam .flash.go{animation:none}.tile:active{transform:none}}
+</style>
+</head>
+<body>
+
+<section id="home">
+  <header>
+    <div id="clock" title="Podrž 2 sekundy pre nastavenie">--:--</div>
+    <div id="date"></div>
+    <div id="count"><i></i><span id="countTxt"></span></div>
+  </header>
+  <div id="groups"></div>
+  <footer>
+    <span id="sync">Načítavam…</span>
+    <button id="demo" class="hidden">Ukážka bez pripojenia – nastaviť</button>
+  </footer>
+</section>
+
+<section id="sheet" class="hidden" aria-modal="true" role="dialog">
+  <div class="cam">
+    <video id="vid" playsinline muted autoplay></video>
+    <img id="shot" alt="" class="hidden">
+    <div class="nocam hidden" id="nocam">Kamera nie je dostupná.<br>Záznam sa uloží bez fotky.</div>
+    <div class="flash" id="flash"></div>
+  </div>
+  <div class="who">
+    <h1 id="sName"></h1>
+    <p id="sState"></p>
+    <button class="act" id="act"></button>
+    <div class="links">
+      <button id="alt"></button>
+      <button class="cancel" id="cancel">Zrušiť</button>
+    </div>
+  </div>
+</section>
+
+<section id="done" class="hidden" aria-live="assertive">
+  <div class="big" id="dBig"></div>
+  <div class="msg" id="dMsg"></div>
+  <div class="note" id="dNote"></div>
+</section>
+
+<section id="setup" class="hidden">
+  <div class="card">
+    <h2>Nastavenie tabletu</h2>
+    <p>Vlož Airtable token s prístupom k base Dochádzka (čítanie a zápis záznamov). Uloží sa len v tomto tablete.</p>
+    <label for="tok">Token</label>
+    <input id="tok" type="password" autocomplete="off" placeholder="pat…">
+    <div id="setMsg"></div>
+    <div class="row">
+      <button class="btn" id="save">Uložiť a otestovať</button>
+      <button class="btn ghost" id="close">Zavrieť</button>
+      <button class="btn ghost" id="fs">Celá obrazovka</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+const BASE='appBy499CfXWspEwm';
+const T={workers:'tbl3hG7ehCANkuHCG',att:'tbl99myMfyLgcZD25'};
+const F={wName:'fldS120pHafSy2Cwc',wSec:'fldF2hH2QcPK4E0il',wOn:'fldqbPnb9Z3qsutBa',
+  aW:'fldDw5lm0GBCkPdfs',aType:'fldc7J2pUkydStIx4',aPlace:'fld2NL4Ec4cdswaze',aPhoto:'fld0a9CNdxnhbShcq',aFix:'fld9zCWZ5gOuviNOW',aNote:'fldH2MufYytiYVQf4'};
+const SECTIONS=['Montáž','PVC dielňa','Al dielňa','Kancelária'];
+const K={tok:'doch_token',queue:'doch_queue',cache:'doch_workers'};
+const $=id=>document.getElementById(id);
+
+let token=ls(K.tok), demo=!token;
+let workers=[], state={}, queue=JSON.parse(ls(K.queue)||'[]'), lastSync=null, syncErr='';
+let cur=null, stream=null, busy=false, idleT=null;
+
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+const pad=n=>String(n).padStart(2,'0');
+const hm=d=>pad(d.getHours())+':'+pad(d.getMinutes());
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+const DAYS=['nedeľa','pondelok','utorok','streda','štvrtok','piatok','sobota'];
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),5000)}
+
+/* ---------- Airtable ---------- */
+async function api(path,opts){
+  const r=await fetch('https://api.airtable.com/v0/'+BASE+'/'+path,Object.assign({headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}},opts||{}));
+  if(!r.ok){const e=new Error(r.status===401||r.status===403?'Token neplatí alebo nemá prístup k base Dochádzka.':'Airtable vrátil chybu '+r.status+'.');e.http=r.status;throw e}
+  return r.json();
+}
+async function all(table,q){
+  let out=[],off='';
+  do{const d=await api(table+'?returnFieldsByFieldId=true&pageSize=100'+(q||'')+(off?'&offset='+off:''));out=out.concat(d.records);off=d.offset||''}while(off);
+  return out;
+}
+async function loadWorkers(){
+  const r=await all(T.workers);
+  workers=r.filter(x=>x.fields[F.wOn]).map(x=>({id:x.id,name:x.fields[F.wName]||'?',sec:x.fields[F.wSec]||'Ostatní'}));
+  ls(K.cache,JSON.stringify(workers));
+}
+async function loadToday(){
+  const f=encodeURIComponent("IS_AFTER(CREATED_TIME(),DATEADD(TODAY(),-2,'days'))");
+  const r=await all(T.att,'&filterByFormula='+f);
+  const now=new Date(), s={};
+  r.forEach(x=>{
+    const w=(x.fields[F.aW]||[])[0]; if(!w) return;
+    const t=new Date(x.fields[F.aFix]||x.createdTime); if(!sameDay(t,now)) return;
+    if(!s[w]||t>s[w].t) s[w]={t,type:x.fields[F.aType]};
+  });
+  queue.forEach(q=>{const t=new Date(q.t);if(sameDay(t,now)&&(!s[q.wid]||t>s[q.wid].t))s[q.wid]={t,type:q.type}});
+  state=s;
+}
+async function upload(recId,b64){
+  const r=await fetch('https://content.airtable.com/v0/'+BASE+'/'+recId+'/'+F.aPhoto+'/uploadAttachment',{method:'POST',
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({contentType:'image/jpeg',file:b64,filename:'foto-'+Date.now()+'.jpg'})});
+  if(!r.ok) throw new Error('foto');
+}
+async function send(item,late){
+  const fields={[F.aW]:[item.wid],[F.aType]:item.type,[F.aPlace]:'Vstup'};
+  const notes=[];
+  if(!item.photo) notes.push('bez fotky (kamera nedostupná)');
+  if(late){fields[F.aFix]=item.t;notes.push('odoslané dodatočne, tablet bol bez siete')}
+  if(notes.length) fields[F.aNote]=notes.join('; ');
+  const d=await api(T.att,{method:'POST',body:JSON.stringify({records:[{fields}],typecast:true})});
+  if(item.photo){try{await upload(d.records[0].id,item.photo)}catch(e){}}
+}
+async function flush(){
+  if(demo||!queue.length||!navigator.onLine) return;
+  const rest=[];
+  for(const q of queue){try{await send(q,true)}catch(e){rest.push(q);if(e.http)syncErr=e.message}}
+  queue=rest; ls(K.queue,JSON.stringify(queue)); renderFooter();
+}
+async function refresh(){
+  if(demo) return;
+  try{
+    if(!workers.length) await loadWorkers();
+    await loadToday(); lastSync=new Date(); syncErr='';
+  }catch(e){syncErr=e.http?e.message:'Bez pripojenia – pípnutia sa uložia v tablete.'}
+  render();
+}
+
+/* ---------- ukážkové dáta ---------- */
+function demoData(){
+  const g={'Montáž':['Marek','Milan L','Miro','Števo','Andi','Miš','Matúš'],'PVC dielňa':['Lubo','Milan S','Janko'],'Al dielňa':['Zdenko','Robko','Kiko','Maťka'],'Kancelária':['Igi','Jupo','Danka','Janka','Zuzka']};
+  workers=[];Object.keys(g).forEach(s=>g[s].forEach((n,i)=>workers.push({id:'demo'+s+i,name:n,sec:s})));
+  const d=new Date();const at=(h,m)=>{const x=new Date(d);x.setHours(h,m,0,0);return x};
+  state={};[[0,6,41],[1,6,44],[2,6,52],[3,6,55],[7,6,30],[10,6,28],[11,6,35],[14,7,58]].forEach(([i,h,m])=>state[workers[i].id]={t:at(h,m),type:'Príchod'});
+  state[workers[8].id]={t:at(6,31),type:'Odchod'};
+}
+
+/* ---------- vykreslenie ---------- */
+function render(){
+  const G=$('groups'); G.innerHTML='';
+  const secs=SECTIONS.concat(workers.some(w=>!SECTIONS.includes(w.sec))?['Ostatní']:[]);
+  G.style.setProperty('--cols',secs.length);
+  const counts={};workers.forEach(w=>{const k=SECTIONS.includes(w.sec)?w.sec:'Ostatní';counts[k]=(counts[k]||0)+1});
+  G.style.setProperty('--rows',Math.max(1,...Object.values(counts)));
+  let inCount=0;
+  secs.forEach(sec=>{
+    const list=workers.filter(w=>(SECTIONS.includes(w.sec)?w.sec:'Ostatní')===sec).sort((a,b)=>a.name.localeCompare(b.name,'sk'));
+    if(!list.length) return;
+    const g=document.createElement('div');g.className='group';
+    g.innerHTML='<h2>'+sec+'</h2><div class="tiles"></div>';
+    const box=g.lastChild;
+    list.forEach(w=>{
+      const s=state[w.id], b=document.createElement('button');
+      let cls='tile',st='';
+      if(s&&s.type==='Príchod'){cls+=' in';st='od '+hm(s.t);inCount++}
+      else if(s&&s.type==='Odchod'){cls+=' out';st='odišiel '+hm(s.t)}
+      b.className=cls;b.innerHTML='<span class="nm"></span><span class="st"></span>';
+      b.firstChild.textContent=w.name;b.lastChild.textContent=st;
+      b.onclick=()=>open(w);box.appendChild(b);
+    });
+    G.appendChild(g);
+  });
+  $('countTxt').textContent='V práci '+inCount+' z '+workers.length;
+  renderFooter();
+}
+function renderFooter(){
+  const el=$('sync');
+  $('demo').classList.toggle('hidden',!demo);
+  if(demo){el.textContent='Údaje sú len na ukážku, nič sa neukladá.';return}
+  let t=syncErr?'<span class="warn"></span>':(lastSync?'Aktualizované '+hm(lastSync):'Načítavam…');
+  el.innerHTML=t; if(syncErr) el.firstChild.textContent=syncErr;
+  if(queue.length){const s=document.createElement('span');s.className='warn';s.textContent='  Čaká na odoslanie: '+queue.length;el.appendChild(s)}
+}
+function tick(){
+  const d=new Date();
+  $('clock').textContent=hm(d);
+  $('date').textContent=DAYS[d.getDay()]+' '+d.getDate()+'. '+(d.getMonth()+1)+'.';
+}
+
+/* ---------- pípnutie ---------- */
+async function camOn(){
+  $('nocam').classList.add('hidden');$('shot').classList.add('hidden');
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:480},height:{ideal:640}},audio:false});
+    $('vid').srcObject=stream;
+  }catch(e){stream=null;$('nocam').classList.remove('hidden')}
+}
+function camOff(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('vid').srcObject=null}
+function snap(){
+  const v=$('vid'); if(!stream||!v.videoWidth) return null;
+  const w=360,h=Math.round(w*v.videoHeight/v.videoWidth),c=document.createElement('canvas');
+  c.width=w;c.height=h;const x=c.getContext('2d');x.translate(w,0);x.scale(-1,1);x.drawImage(v,0,0,w,h);
+  const url=c.toDataURL('image/jpeg',0.72);
+  $('shot').src=url;$('shot').classList.remove('hidden');
+  const f=$('flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go');
+  return url.split(',')[1];
+}
+function idle(){clearTimeout(idleT);idleT=setTimeout(close,25000)}
+function open(w){
+  cur=w;const s=state[w.id], isIn=s&&s.type==='Príchod';
+  cur.type=isIn?'Odchod':'Príchod';
+  $('sName').textContent=w.name;
+  const p=$('sState');
+  if(isIn){p.innerHTML='V práci od <b></b>';p.lastChild.textContent=hm(s.t)}
+  else if(s){p.textContent='Odišiel o '+hm(s.t)}
+  else p.textContent='Dnes ešte bez príchodu';
+  setAct();
+  $('sheet').classList.remove('hidden');camOn();idle();
+}
+function setAct(){
+  const a=$('act');a.disabled=false;
+  a.className='act '+(cur.type==='Príchod'?'in':'out');a.textContent=cur.type;
+  $('alt').textContent='Zapísať '+(cur.type==='Príchod'?'odchod':'príchod');
+}
+function close(){clearTimeout(idleT);camOff();$('sheet').classList.add('hidden');cur=null;busy=false}
+$('alt').onclick=()=>{cur.type=cur.type==='Príchod'?'Odchod':'Príchod';setAct();idle()};
+$('cancel').onclick=close;
+$('act').onclick=async()=>{
+  if(busy||!cur) return; busy=true;
+  const a=$('act');a.disabled=true;a.textContent='Ukladám…';
+  const photo=snap(); const now=new Date();
+  const item={wid:cur.id,type:cur.type,t:now.toISOString(),photo};
+  let note='';
+  if(demo){await new Promise(r=>setTimeout(r,500))}
+  else{
+    try{await send(item,false)}
+    catch(e){queue.push(item);ls(K.queue,JSON.stringify(queue));note='Uložené v tablete, odošle sa po obnovení siete.'}
+  }
+  if(!photo&&!note) note='Bez fotky – kamera nebola dostupná.';
+  state[cur.id]={t:now,type:item.type};
+  const w=cur; close(); showDone(w,item.type,now,note); render();
+};
+function showDone(w,type,t,note){
+  const d=$('done');d.className=type==='Príchod'?'in':'out';
+  $('dBig').textContent=type+' '+hm(t);
+  const h=t.getHours();
+  $('dMsg').textContent=(type==='Príchod'?(h<10?'Dobré ráno, ':'Ahoj, '):'Dovidenia, ')+w.name;
+  $('dNote').textContent=note;
+  setTimeout(()=>d.classList.add('hidden'),note?3500:2200);
+}
+
+/* ---------- nastavenie ---------- */
+function openSetup(){$('tok').value=token||'';$('setMsg').textContent='';$('setup').classList.remove('hidden')}
+$('demo').onclick=openSetup;
+$('close').onclick=()=>$('setup').classList.add('hidden');
+$('fs').onclick=()=>{const e=document.documentElement;if(e.requestFullscreen)e.requestFullscreen().catch(()=>{})};
+$('save').onclick=async()=>{
+  const v=$('tok').value.trim(), m=$('setMsg');
+  if(!v){token=null;demo=true;ls(K.tok,null);demoData();render();m.textContent='Token zmazaný, beží ukážka.';return}
+  const old=token;token=v;m.textContent='Skúšam pripojenie…';
+  try{workers=[];await loadWorkers();await loadToday();ls(K.tok,v);demo=false;lastSync=new Date();syncErr='';render();
+    m.textContent='Pripojené. Zamestnancov na tablete: '+workers.length+'.';setTimeout(()=>$('setup').classList.add('hidden'),1200)}
+  catch(e){token=old;m.textContent=e.message||'Pripojenie zlyhalo.'}
+};
+let press=null;
+$('clock').addEventListener('pointerdown',()=>{press=setTimeout(openSetup,2000)});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>$('clock').addEventListener(ev,()=>clearTimeout(press)));
+
+/* ---------- obrazovka stále zapnutá ---------- */
+let lock=null;
+async function wake(){try{if('wakeLock' in navigator&&(!lock||lock.released))lock=await navigator.wakeLock.request('screen')}catch(e){}}
+document.addEventListener('pointerdown',wake,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){wake();refresh()}});
+window.addEventListener('online',()=>{flush().then(refresh)});
+
+/* ---------- štart ---------- */
+tick();setInterval(tick,5000);
+if(demo){demoData();render()}
+else{try{workers=JSON.parse(ls(K.cache)||'[]')}catch(e){workers=[]}render();loadWorkers().catch(()=>{}).then(()=>{flush();refresh()})}
+setInterval(()=>{if(!cur){flush();refresh()}},90000);
+let day=new Date().getDate();
+setInterval(()=>{const d=new Date().getDate();if(d!==day){day=d;state={};workers=[];refresh()}},60000);
+})();
+</script>
+</body>
+</html>

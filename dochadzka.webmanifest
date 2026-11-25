@@ -1,0 +1,14 @@
+{
+  "name": "Dochádzka JiPO",
+  "short_name": "Dochádzka",
+  "start_url": "dochadzka.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#DDE2E5",
+  "theme_color": "#DDE2E5",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
