@@ -4,7 +4,7 @@
   "start_url": "dochadzka.html",
   "scope": "./",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "orientation": "portrait",
   "background_color": "#DDE2E5",
   "theme_color": "#DDE2E5",
   "icons": [

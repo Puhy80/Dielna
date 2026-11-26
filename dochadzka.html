@@ -107,11 +107,12 @@ footer .warn{color:var(--err);font-weight:600}
 #toast.on{display:block}
 
 @media (orientation:portrait){
-  #groups{--cols:2!important;grid-auto-rows:min-content;overflow:auto}
-  .tiles{grid-template-rows:none;grid-auto-rows:64px;max-height:none}
-  #sheet{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;align-items:start}
-  .cam{max-height:52vh}
-  .who{text-align:center}.act,.links{margin-left:auto;margin-right:auto}
+  #clock{font-size:clamp(44px,7.5vh,80px)}
+  #groups{--cols:2!important;grid-template-rows:auto auto;align-content:start;gap:clamp(12px,2.2vh,22px) clamp(8px,2vw,14px)}
+  .tiles{grid-template-rows:none;grid-auto-rows:clamp(46px,6.6vh,76px);max-height:none;flex:none}
+  #sheet{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;align-items:center;justify-items:center}
+  .cam{max-height:50vh;height:50vh}
+  .who{text-align:center;width:100%}.act,.links{margin-left:auto;margin-right:auto}
 }
 @media (prefers-reduced-motion:reduce){.cam .flash.go{animation:none}.tile:active{transform:none}}
 </style>

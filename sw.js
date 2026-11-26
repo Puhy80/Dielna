@@ -1,5 +1,5 @@
 // Dochádzka – service worker: umožní inštaláciu ako aplikácie a otvorenie stránky aj bez siete.
-const CACHE='dochadzka-v1';
+const CACHE='dochadzka-v2';
 const FILES=['dochadzka.html','dochadzka.webmanifest','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
